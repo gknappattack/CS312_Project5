@@ -177,12 +177,14 @@ class Node:
 
         # Add get path up to this point and add new city to path
         self.path = []
-        self.path = copy.deepcopy(parent_path)
+        for city in parent_path:
+            self.path.append(city)
         self.path.append(curr_city)
 
         # Get index of cities visited up to this point for use in cost matrix
         self.cities_visited = []
-        self.cities_visited = copy.deepcopy(parent_cities)
+        for city in parent_cities:
+            self.cities_visited.append(city)
         self.cities_visited.append(curr_city_index)
 
     def generateCostMatrix(self, cities):
@@ -397,12 +399,12 @@ class TSPSolver:
 
                 # Check if time expired
                 if time.time() - start_time > time_allowance:
-                    # print("Time expired!")
+                    print("Time expired!")
                     break
 
                 initial_state = None
 
-                # print("Starting from city " + str(starting_city_index))
+                #print("Starting from city " + str(starting_city_index))
                 initial_state = Node(0, [], cities[starting_city_index], starting_city_index, [], [])
                 initial_state.generateCostMatrix(cities)
 
@@ -411,15 +413,22 @@ class TSPSolver:
 
                     initial_state.get_greedy_path(cities)
 
+                    # There is no valid solution for this matrix
+                    if initial_state.lowerbound == np.inf:
+                        break
+
                 if greedy_solution is None:
-                    greedy_solution = TSPSolution(initial_state.path)
-                    solution_count += 1
+                    # Check that initial solution is valid
+                    if initial_state.lowerbound != np.inf:
+                        greedy_solution = TSPSolution(initial_state.path)
+                        solution_count += 1
                 else:
                     if initial_state.lowerbound < greedy_solution.cost:
-                        # print("Found a new solution!")
+                        #print("Found a new solution!")
                         greedy_solution = TSPSolution(initial_state.path)
                         solution_count += 1
 
+            #print("Tried all solutions")
             all_solutions_checked = True
 
         # Stop timing for end timer
