@@ -507,8 +507,6 @@ class TSPSolver:
                     if Pi.lowerbound < bssf.cost:
                         bssf = TSPSolution(Pi.path)
                         solution_count += 1
-                    else:
-                        solution_count += 1  # increment solution count but don't change bssf
                 # Not at a solution yet, continue with incrementing
                 else:
                     # Lower bound of partial solution is >= BSSF, prune state
