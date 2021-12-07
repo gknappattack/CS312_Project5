@@ -834,8 +834,7 @@ class TSPSolver:
         # Return results - Time O(1)
         return results
 
-
-
+    #### Fancy with searching for best connection between clusters
     def fancy(self, time_allowance=60.0):
         # Initialize dictionary for results
         results = {}  # Initialize variable - Time O(1)
@@ -857,7 +856,7 @@ class TSPSolver:
 
         # Determine the number of clusters based on problem size. The + 1 prevents infinite looping
         # when there is an odd number of cities
-        min_cluster_size = (ncities // 4) + 1
+        min_cluster_size = 24
         starting_index = 0
 
         # Start timer now:
@@ -867,7 +866,7 @@ class TSPSolver:
             if starting_index == ncities:
                 break
 
-            #print("Testing starting from city " + str(starting_index))
+            # print("Testing starting from city " + str(starting_index))
             # Start from city 0
             starting_state = Node(0, [], cities[starting_index], starting_index, [], [])
             starting_state.generateCostMatrix(cities)
@@ -876,7 +875,7 @@ class TSPSolver:
             city_clusters = []
 
             # Step 1 Cluster the cities
-            for index in range(starting_index, ncities+starting_index):
+            for index in range(starting_index, ncities + starting_index):
                 path_cost_queue = PriorityQueue()
                 current_cluster = []
 
@@ -920,7 +919,7 @@ class TSPSolver:
 
                 city_clusters.append(current_cluster)
 
-            #print("Done getting clusters!")
+            # print("Done getting clusters!")
 
             # Step 2: Identify the best connections from cluster to cluster
 
@@ -932,7 +931,7 @@ class TSPSolver:
                 cluster_distance = self.getCostMatrix(cities, city_clusters[index])
                 cluster_distances.append(cluster_distance)
 
-            #print("Cost matrixes for each cluster created")
+            # print("Cost matrixes for each cluster created")
 
             # Start solving from cluster 0 starting from city 0
             working_cluster_index = 0
@@ -996,7 +995,6 @@ class TSPSolver:
         results['pruned'] = None
 
         return results
-
 
     def getCostMatrix(self, cities, cluster):
         costmatrix = np.zeros((len(cluster), len(cluster)))
