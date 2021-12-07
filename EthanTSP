@@ -21,7 +21,7 @@ import heapq
 import itertools
 
 SPACE_ALLOWANCE = 5
-CLUSTER_SIZE = 13
+CLUSTER_SIZE = 10
 
 class TSPSolver:
 	def __init__( self, gui_view ):
@@ -218,15 +218,20 @@ class TSPSolver:
 		final_route_2 = []
 		final_route_3 = []
 
+
 		cluster_cost_matrix, cluster_connection_matrix = find_children_connections(children)
+		##TODO: cluster route is using branch and bound, should use a greedy.
 		cluster_route = branch_and_bound_algorithm(len(children), cluster_cost_matrix, 0)
+		route_conn = select_connection_tuple(cluster_route, cluster_connection_matrix)
+		time_start = time.time()
+
 		for i in range(len(cluster_route)):
 			child = children[cluster_route[i]]
 			childMatrix = initialize_matrix(child)
 			start_cluster = cluster_route[i-1]
 			end_cluster = cluster_route[0] if i == len(cluster_route)-1 else cluster_route[i+1]
-			start_city = cluster_connection_matrix[start_cluster][cluster_route[i]][1]
-			end_city = cluster_connection_matrix[cluster_route[i]][end_cluster][0]
+			start_city = route_conn[i-1][1]
+			end_city = route_conn[i][0]
 			start_city_idx = child.index(start_city)
 			end_city_idx = child.index(end_city)
 			print(i, "cluster: ", start_city._name, ", ", end_city._name)
@@ -237,12 +242,12 @@ class TSPSolver:
 			final_route_3.extend([child[idx]._name for idx in child_route])
 			final_route.extend([child[idx] for idx in child_route])
 
-
+		time_end = time.time()
 		print([my_child._name for my_child in final_route])
 		#wrap-up
 		bssf = TSPSolution(final_route)
 		results['cost'] = bssf.cost
-		results['time'] = 100
+		results['time'] = time_end - time_start
 		results['count'] = 1
 		results['soln'] = bssf
 		results['max'] = 100
@@ -303,6 +308,7 @@ def cluster_all_children(cities):
 	i = 0
 	cluster_dict = dict()
 	while len(unused_cities) > 0:
+		print(i, ": ")
 		cluster_list.append(cluster_child(get_start_city(unused_cities), unused_cities, cluster_dict, i))
 		i += 1
 
@@ -318,6 +324,7 @@ def cluster_child(start_city, unused_cities, cluster_dict, iter):
 	_, _, next_city = pqueue.get()
 	for i in range(len(unused_cities)):
 		pqueue.put((next_city.costTo(unused_cities[i]), rand(), unused_cities[i]))
+
 
 	child_set = set()
 	while len(child_set) < CLUSTER_SIZE and len(child_set) < len(unused_cities):
@@ -352,33 +359,47 @@ def find_children_connections(children):
 			for j in range(child_cnt):
 				if i == j:
 					continue
-				conn_list = [x for sub in cluster_connection_matrix for x in sub]
-				used_cities = [item for t in conn_list for item in t]
-
-				conn_1, cost = shortest_connection(children[i], children[j], used_cities)
+				# conn_list_all = [x for sub in cluster_connection_matrix for x in sub]
+				# conn_list = [x for sub in cluster_connection_matrix[i] for x in sub]
+				# conn_list.extend([x for sub in cluster_connection_matrix[:][j] for x in sub])
+				# used_cities = conn_list_all
+				# okay_cities = conn_list
+				conn_1, cost = shortest_connection(children[i], children[j])
 				cluster_cost_matrix[i][j] = cost
 				cluster_connection_matrix[i][j] = conn_1
 
 	return cluster_cost_matrix, cluster_connection_matrix
 
-def shortest_connection(city_list1, city_list2, used_cities):
+def shortest_connection(city_list1, city_list2):
 	my_min = np.inf
 	min_city_from = None
 	min_city_to = None
 
+	min_2 = np.inf
+	min_from_2 = None
+	min_to_2 = None
+
+	min_3 = np.inf
+	min_from_3 = None
+	min_to_3 = None
+
 	for city in city_list1:
-		if city in used_cities:
-			continue
 		for city_to in city_list2:
-			if city_to in used_cities:
-				continue
 			curr_cost = city.costTo(city_to)
 			if curr_cost < my_min:
 				my_min = curr_cost
 				min_city_from = city
 				min_city_to = city_to
+			elif curr_cost < min_2:
+				min_2 = curr_cost
+				min_from_2 = city
+				min_to_2 = city_to
+			elif curr_cost < min_3:
+				min_3 = curr_cost
+				min_from_3 = city
+				min_to_3 = city_to
 
-	return (min_city_from, min_city_to), my_min
+	return ((min_city_from, min_city_to), (min_from_2, min_to_2), (min_from_3, min_to_3)), my_min
 
 def shortest_connections_for_two(city_list1, city_list2):
 	min_1 = np.inf
@@ -408,6 +429,22 @@ def conn_has_overlap (conn_1, conn_2):
 				return True
 
 	return False
+
+def select_connection_tuple(cluster_route, cluster_conn_matrix):
+	used_cities = []
+	route_conn = []
+	for i in range(len(cluster_route)):
+		curr = cluster_route[i]
+		next = cluster_route[0] if i == len(cluster_route)-1 else cluster_route[i+1]
+		poss_connections = cluster_conn_matrix[curr][next]
+		for conn in poss_connections:
+			if conn[0] not in used_cities and conn[1] not in used_cities:
+				route_conn.append(conn)
+				used_cities.append(conn[0])
+				used_cities.append(conn[1])
+				break
+
+	return route_conn
 
 def get_start_city(set):
 	for e in set:
@@ -474,7 +511,6 @@ def branch_and_bound_algorithm(cities_cnt, cityMatrix, start_c):
 
 
 	return my_route
-
 
 def setup_start_and_end(childMatrix, start, end):
 	for i in range(len(childMatrix)):
