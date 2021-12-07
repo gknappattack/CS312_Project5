@@ -1,0 +1,244 @@
+    def fancy(self, time_allowance=60.0):
+        # Initialize dictionary for results
+        results = {}  # Initialize variable - Time O(1)
+
+        # Get list of cities
+        cities = self._scenario.getCities()  # O(n) time to get array of cities
+
+        # Save number of cities to variable for easy use.
+        ncities = len(cities)  # Get len - Time O(1)
+
+        # Generate a random bssf to start with
+        perm = np.random.permutation(ncities)
+        route = []
+        # Now build the route using the random permutation
+        for i in range(ncities):
+            route.append(cities[perm[i]])
+        bssf = TSPSolution(route)
+        bssf.cost = np.inf
+
+        # Determine the number of clusters based on problem size. The + 1 prevents infinite looping
+        # when there is an odd number of cities
+        min_cluster_size = 24
+        starting_index = 0
+
+        # Start timer now:
+        start_time = time.time()
+        while True:
+
+            if starting_index == ncities:
+                break
+
+            # print("Testing starting from city " + str(starting_index))
+            # Start from city 0
+            starting_state = Node(0, [], cities[starting_index], starting_index, [], [])
+            starting_state.generateCostMatrix(cities)
+
+            # Initialize empty array of clusters
+            city_clusters = []
+
+            # Step 1 Cluster the cities
+            for index in range(starting_index, ncities + starting_index):
+                path_cost_queue = PriorityQueue()
+                current_cluster = []
+
+                city_included = False
+
+                real_index = index % ncities
+
+                # Check if city has already been sorted
+                for cluster_index in range(len(city_clusters)):
+                    if real_index in city_clusters[cluster_index]:
+                        city_included = True
+
+                if city_included:
+                    continue
+                else:
+                    current_cluster.append(real_index)
+
+                for destination_city in range(ncities):
+                    path_cost = starting_state.costmatrix[real_index][destination_city]
+                    path_cost_queue.put((path_cost, destination_city))
+
+                while len(current_cluster) < min_cluster_size:
+                    if path_cost_queue.empty():
+                        break
+
+                    next_city = path_cost_queue.get()[1]
+
+                    # Check if city has not been added yet to a cluster
+                    city_in_cluster = False
+
+                    # Check if city has already been sorted
+                    for cluster_index in range(len(city_clusters)):
+                        if next_city in city_clusters[cluster_index]:
+                            city_in_cluster = True
+
+                    if next_city in current_cluster:
+                        city_in_cluster = True
+
+                    if not city_in_cluster:
+                        current_cluster.append(next_city)
+
+                city_clusters.append(current_cluster)
+
+            # print("Done getting clusters!")
+
+            # Step 2: Identify the best connections from cluster to cluster
+
+            # Step 2?: Solve the shortest path in each cluster using a simple greedy nearest neighbor
+
+            # Generate cost matricies for each cluster for easy calculations
+            cluster_distances = []
+            for index in range(len(city_clusters)):
+                cluster_distance = self.getCostMatrix(cities, city_clusters[index])
+                cluster_distances.append(cluster_distance)
+
+            # print("Cost matrixes for each cluster created")
+
+            # Start solving from cluster 0 starting from city 0
+            working_cluster_index = 0
+
+            # Initialize solution starting from city 0
+            solution_path = [starting_index]
+
+            # Get the value of the destination of the connection back to the first cluster
+            # Remove from cluster connection to simplify solving clusters
+
+            nodes_added = 1
+
+            valid_solution = True
+
+            # Continue solving until the path is complete or the solution is deemed invalid
+            while len(solution_path) < ncities:
+                # Get the matrix for the current cluster in use
+                current_cluster_cities = city_clusters[working_cluster_index]
+                current_cluster_matrix = cluster_distances[working_cluster_index]
+
+                # Select the shortest path from the current matrix - Add to final path
+                next_city = self.greedyGetShortestPath(current_cluster_cities, current_cluster_matrix, solution_path)
+
+                if next_city is None and nodes_added != len(current_cluster_cities):
+                    valid_solution = False
+                    break
+
+                # Check if we reached the end of the cluster - if so, find connection to next cluster, add and
+                # update variables to calculate solution for next cluster
+                if len(current_cluster_cities) == nodes_added:  # finished this cluster, find best connection out
+                    destination_city = self.findShortestConnections(city_clusters, working_cluster_index,
+                                                                    starting_state, solution_path)
+                    solution_path.append(destination_city)
+
+                    working_cluster_index = working_cluster_index + 1
+                    nodes_added = 1
+
+                else:  # Otherwise just append solution like normal
+                    solution_path.append(next_city)
+                    nodes_added = nodes_added + 1
+
+            if valid_solution:
+                final_solution = self.convertIndexToCities(cities, solution_path)
+                new_soln = TSPSolution(final_solution)
+
+                if new_soln.cost < bssf.cost:
+                    bssf = new_soln
+
+            starting_index = starting_index + 1
+
+        end_time = time.time()
+        print("Done assembling path")
+
+        # Save values to results array - Time O(1)
+        results['cost'] = bssf.cost
+        results['time'] = end_time - start_time
+        results['count'] = 1
+        results['soln'] = bssf
+        results['max'] = None
+        results['total'] = None
+        results['pruned'] = None
+
+        return results
+
+    def getCostMatrix(self, cities, cluster):
+        costmatrix = np.zeros((len(cluster), len(cluster)))
+
+        for row, sourceindex in enumerate(cluster):
+            for column, destindex in enumerate(cluster):
+                city = cities[sourceindex]
+                secondcity = cities[destindex]
+
+                if city == secondcity:  # Check if condition - Time O(1)
+                    costmatrix[row][column] = np.inf  # Update values in array - Time O(1)
+                else:
+                    costmatrix[row][column] = city.costTo(secondcity)  # Update value - Time O(1)
+
+        return costmatrix
+
+    def greedyGetShortestPath(self, cluster, matrix, current_solution):
+        # Get the index of the starting city based on location in
+        starting_city = current_solution[len(current_solution) - 1]
+
+        # Get the index of the starting city in the matrix to get the correct row from it
+        starting_city_index = cluster.index(starting_city)
+
+        # Extract the row of values from the full matrix to check paths from the current city
+        distances_from_starting_city = matrix[starting_city_index]
+
+        # Create a priority queue to store path costs and column indicies
+        prio_q = PriorityQueue()
+
+        for column_index, city in enumerate(distances_from_starting_city):
+            current_cost = distances_from_starting_city[column_index]
+
+            next_city = cluster[column_index]
+
+            # Only add cities to the queue if they are not part of the solution yet or path doesn't exist
+            if next_city not in current_solution and current_cost != np.inf:
+                prio_q.put((current_cost, column_index))
+
+        while True:
+            if prio_q.empty():
+                return None
+
+            # Get the columm of the path with the lowest value
+            min_path = prio_q.get()
+            min_column_index = min_path[1]
+
+            # Get the number of the city from the cluster at the column index
+            next_city = cluster[min_column_index]
+
+            return next_city
+
+    def convertIndexToCities(self, cities, solution):
+        final_solution = []
+
+        for index in solution:
+            final_solution.append(cities[index])
+
+        for index in range(len(final_solution) - 1):
+            cost = final_solution[index].costTo(final_solution[index + 1])
+
+        return final_solution
+
+    def findShortestConnections(self, city_clusters, working_cluster_index, starting_state, solution_path):
+        # Get the current and next clusters to compare
+        starting_cluster = city_clusters[working_cluster_index]
+        destination_cluster = city_clusters[working_cluster_index + 1]
+
+        # Create a priority queue to store edges between clusters
+        connections_prio_queue = PriorityQueue()
+
+        # Get the city to start from to connect the clusters
+        starting_city = solution_path[len(solution_path) - 1]
+
+        # Get the values of all paths between all cities in both clusters, save to prio queue
+        for destination_city in destination_cluster:
+            path_cost = starting_state.costmatrix[starting_city][destination_city]
+            connections_prio_queue.put((path_cost, starting_city, destination_city))
+
+        while True:
+            min_connection = connections_prio_queue.get()
+            if min_connection[2] not in solution_path:
+                break
+
+        return min_connection[2]

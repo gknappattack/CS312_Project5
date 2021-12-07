@@ -1,8 +1,5 @@
 #!/usr/bin/python3
-from queue import PriorityQueue
 import copy
-
-from numpy.random import rand
 
 from which_pyqt import PYQT_VER
 
@@ -16,6 +13,8 @@ import numpy as np
 from TSPClasses import *
 import heapq
 import itertools
+from queue import PriorityQueue
+
 
 SPACE_ALLOWANCE = 3
 CLUSTER_SIZE = 10
@@ -23,6 +22,21 @@ MIN_CLUSTER_SIZE = 5
 MAX_CLUSTER_SIZE = 20
 
 
+# Binary Heap implementation of a Priority Queue. The code is essentially the same from my project 3, with a few
+# specializations to make it work for this project (using a unique priority key instead of values from dist array and
+# other changes. These changes don't affect the performance of this data structure. The time complexity of
+# each function is detailed before, with insert, decrease_key, and delete_min all performing at a time complexity
+# of O(log n) because they need to sort the values up or down depending on the function, which takes about log n
+# iterations to complete on average or worst case.
+#
+# Unlike the previous project, the space complexity of the heap queue is more interesting than before. Because of the
+# way the branch and bound function trims and prunes states, you do not necessarily get a heap queue with O(2^n)
+# exponential side because not every state is added to the queue. It is entirely dependent on the problem to
+# solve, but when testing my code, a TSP problem with 15 or less cities rarely had a max queue size of
+# more than 100. For a 10 city problem, 100 max queue size would be a size complexity of O(n^2), so that is a good
+# starting evaluation of space complexity for the heap queue in this context. There were always outliers in testing
+# for max queue size, but in general, it was very rare to see a max queue size greater than O(n^2) where n is the
+# number of cities to visit, making O(n^2) a safe upper bound on space complexity.
 class HeapQueue:
     def __init__(self):
         # Initialize empty array of nodes.
@@ -564,28 +578,28 @@ class TSPSolver:
         results['pruned'] = None
         return results
 
-        # A greedy algorithm implementation of the TSP solver. While intended for Project 6, I decided to make it earlier
-        # to use it to get an initial bssf state for the branch and bound function, since it would get me a decent estimate
-        # resulting in more states pruned earlier and less states to create as a result.
-        #
-        # The function works as described in the specs; it starts from each city and checks the values for all possible
-        # paths from the current city to any city not visited and selects the smallest one, adding it to the current path.
-        # If it ever encounters a minimum value of infinity, the path is deemed impossible and no solution is added.
-        # The function tries this greedy approach for every starting city, updating the best solution from each of the
-        # starting points, returning what ever is the best solution.
-        #
-        # The greedy approach has a time complexity of O(n^3) since there are essentially three nested loops going on.
-        # The for loop that determines the starting city iterates over the length of the cities array, giving us O(n) time
-        # for the outer-most loop. Inside, there is a while loop that calls the get_greedy_path function until the path
-        # is complete (len(path) == len(cities)). While this while loop will break early if the algorithm encounters an
-        # invalid solution, on average it will run through the length of the cities array to get a solution, giving us
-        # another O(n) time loop. Lastly, the call to get_greedy_path is the third nested loop, since the function itself
-        # loops over the length of the cities array to check for the minimum value of the paths out of the current city,
-        # resulting in the third O(n) time complexity loop. For a perfect array that has all valid solutions for each
-        # starting city, that would give us O(n^3) time complexity as an upper bound for time complexity.
-        #
-        # Space complexity for the greedy solution is simply O(n^2), since we are not creating many states like in the
-        # branch and bound method, just one that has a n x n array for the cost matrix that is referenced the entire time.
+    # A greedy algorithm implementation of the TSP solver. While intended for Project 6, I decided to make it earlier
+    # to use it to get an initial bssf state for the branch and bound function, since it would get me a decent estimate
+    # resulting in more states pruned earlier and less states to create as a result.
+    #
+    # The function works as described in the specs; it starts from each city and checks the values for all possible
+    # paths from the current city to any city not visited and selects the smallest one, adding it to the current path.
+    # If it ever encounters a minimum value of infinity, the path is deemed impossible and no solution is added.
+    # The function tries this greedy approach for every starting city, updating the best solution from each of the
+    # starting points, returning what ever is the best solution.
+    #
+    # The greedy approach has a time complexity of O(n^3) since there are essentially three nested loops going on.
+    # The for loop that determines the starting city iterates over the length of the cities array, giving us O(n) time
+    # for the outer-most loop. Inside, there is a while loop that calls the get_greedy_path function until the path
+    # is complete (len(path) == len(cities)). While this while loop will break early if the algorithm encounters an
+    # invalid solution, on average it will run through the length of the cities array to get a solution, giving us
+    # another O(n) time loop. Lastly, the call to get_greedy_path is the third nested loop, since the function itself
+    # loops over the length of the cities array to check for the minimum value of the paths out of the current city,
+    # resulting in the third O(n) time complexity loop. For a perfect array that has all valid solutions for each
+    # starting city, that would give us O(n^3) time complexity as an upper bound for time complexity.
+    #
+    # Space complexity for the greedy solution is simply O(n^2), since we are not creating many states like in the
+    # branch and bound method, just one that has a n x n array for the cost matrix that is referenced the entire time.
     def greedy(self, time_allowance=60.0):
         # Initialize dictionary for results
         results = {}  # Initialize variable - Time O(1)
@@ -760,8 +774,7 @@ class TSPSolver:
 
         # Create empty Heap Queue and insert initial state
         S = HeapQueue()  # Create Heap Queue - Time O(1)
-        S.insert(
-            initial_state)  # Insert initial state to heap queue - Time O(1) since there is nothing in the queue
+        S.insert(initial_state)  # Insert initial state to heap queue - Time O(1) since there is nothing in the queue
 
         # Initialize variables used in results array)
         solution_count = 0  # Initialize variable - Time O(1)
@@ -807,7 +820,7 @@ class TSPSolver:
                     if Pi.lowerbound >= bssf.cost:  # Check if condition - Time O(1)
 
                         # Update count of states pruned
-                        states_pruned += 1  # Variable assignment - Time O(1)
+                        states_pruned += 1   # Variable assignment - Time O(1)
 
                     # Path lower bound is < BSSF push to heap queue and wait for next round
                     else:
@@ -838,15 +851,15 @@ class TSPSolver:
         final_route_3 = []
 
         time_start = time.time()
-        children = Kmeans(cities)
-        cluster_cost_matrix, cluster_connection_matrix = find_children_connections(children)
+        children = State.Kmeans(cities)
+        cluster_cost_matrix, cluster_connection_matrix = State.find_children_connections(children)
         ##TODO: cluster route is using branch and bound, should use a greedy.
-        cluster_route, pruned_states = branch_and_bound_algorithm(len(children), cluster_cost_matrix, 0)
-        route_conn = select_connection_tuple(cluster_route, cluster_connection_matrix)
+        cluster_route, pruned_states = State.branch_and_bound_algorithm(len(children), cluster_cost_matrix, 0)
+        route_conn = State.select_connection_tuple(cluster_route, cluster_connection_matrix)
 
         for i in range(len(cluster_route)):
             child = children[cluster_route[i]]
-            childMatrix = initialize_matrix(child)
+            childMatrix = self.initialize_matrix(child)
             start_cluster = cluster_route[i - 1]
             end_cluster = cluster_route[0] if i == len(cluster_route) - 1 else cluster_route[i + 1]
             start_city = route_conn[i - 1][1]
@@ -859,8 +872,8 @@ class TSPSolver:
             end_city_idx = child.index(end_city)
             print(i, "cluster: ", start_city._name, ", ", end_city._name)
 
-            setup_start_and_end(childMatrix, start_city_idx, end_city_idx)
-            child_route, just_pruned = branch_and_bound_algorithm(len(child), childMatrix, start_city_idx)
+            State.setup_start_and_end(childMatrix, start_city_idx, end_city_idx)
+            child_route, just_pruned = State.branch_and_bound_algorithm(len(child), childMatrix, start_city_idx)
             pruned_states += just_pruned
             final_route_2.extend(child_route.copy())
             final_route_3.extend([child[idx]._name for idx in child_route])
@@ -879,47 +892,43 @@ class TSPSolver:
         results['pruned'] = pruned_states
         return results
 
+    def find_child_val(self, start_city_index, next_city_index, cost_matrix_orig, prev_lowerbound):
+        init_cost = cost_matrix_orig[start_city_index][next_city_index]
 
-def find_child_val(start_city_index, next_city_index, cost_matrix_orig, prev_lowerbound):
-    init_cost = cost_matrix_orig[start_city_index][next_city_index]
+        cost_matrix = copy.deepcopy(cost_matrix_orig)
+        for i in range(len(cost_matrix[start_city_index])):
+            cost_matrix[start_city_index][i] = np.inf
+        for j in range(len(cost_matrix)):
+            cost_matrix[j][next_city_index] = np.inf
+        cost_matrix[next_city_index][start_city_index] = np.inf
 
-    cost_matrix = copy.deepcopy(cost_matrix_orig)
-    for i in range(len(cost_matrix[start_city_index])):
-        cost_matrix[start_city_index][i] = np.inf
-    for j in range(len(cost_matrix)):
-        cost_matrix[j][next_city_index] = np.inf
-    cost_matrix[next_city_index][start_city_index] = np.inf
+        lowerbound = prev_lowerbound + self.reduce_cost_matrix(cost_matrix) + init_cost
+        return lowerbound, cost_matrix
 
-    lowerbound = prev_lowerbound + reduce_cost_matrix(cost_matrix) + init_cost
-    return lowerbound, cost_matrix
+    def reduce_cost_matrix(self, matrix):
+        total_reduced = 0
+        for i in range(len(matrix)):
+            min_row = min(matrix[i])
+            if min_row != 0 and min_row != np.inf:
+                for j in range(len(matrix[i])):
+                    matrix[i][j] -= min_row
+                total_reduced += min_row
 
+        for j in range(len(matrix[0])):
+            min_col = min([i[j] for i in matrix])
+            if min_col != 0 and min_col != np.inf:
+                for i in range(len(matrix)):
+                    matrix[i][j] -= min_col
+                total_reduced += min_col
 
-def reduce_cost_matrix(matrix):
-    total_reduced = 0
-    for i in range(len(matrix)):
-        min_row = min(matrix[i])
-        if min_row != 0 and min_row != np.inf:
+        return total_reduced
+
+    def initialize_matrix(self, cities):
+        matrix = [[0 for i in range(len(cities))] for i in range(len(cities))]
+        for i in range(len(matrix)):
             for j in range(len(matrix[i])):
-                matrix[i][j] -= min_row
-            total_reduced += min_row
-
-    for j in range(len(matrix[0])):
-        min_col = min([i[j] for i in matrix])
-        if min_col != 0 and min_col != np.inf:
-            for i in range(len(matrix)):
-                matrix[i][j] -= min_col
-            total_reduced += min_col
-
-    return total_reduced
-
-
-def initialize_matrix(cities):
-    matrix = [[0 for i in range(len(cities))] for i in range(len(cities))]
-    for i in range(len(matrix)):
-        for j in range(len(matrix[i])):
-            matrix[i][j] = cities[i].costTo(cities[j])
-    return matrix
-
+                matrix[i][j] = cities[i].costTo(cities[j])
+        return matrix
 
 class State:
     def __init__(self, curr_route, curr_cost_matrix, curr_lowerbound):
@@ -927,267 +936,252 @@ class State:
         self.cost_matrix = curr_cost_matrix
         self.lowerbound = curr_lowerbound
 
+    def cluster_all_children(self, cities):
+        unused_cities = [cities[i] for i in range(len(cities))]
+        cluster_list = []
+        i = 0
+        cluster_dict = dict()
+        while len(unused_cities) > 0:
+            print(i, ": ")
+            cluster_list.append(self.cluster_child(self.get_start_city(unused_cities), unused_cities, cluster_dict, i))
+            i += 1
 
-def cluster_all_children(cities):
-    unused_cities = [cities[i] for i in range(len(cities))]
-    cluster_list = []
-    i = 0
-    cluster_dict = dict()
-    while len(unused_cities) > 0:
-        print(i, ": ")
-        cluster_list.append(cluster_child(get_start_city(unused_cities), unused_cities, cluster_dict, i))
-        i += 1
+        return cluster_list
 
-    return cluster_list
-
-
-def cluster_child(start_city, unused_cities, cluster_dict, iter):
-    pqueue = PriorityQueue()
-    for i in range(len(unused_cities)):
-        pqueue.put((start_city.costTo(unused_cities[i]), rand(), unused_cities[i]))
-    if pqueue.qsize() > 0:
-        _, _, next_city = pqueue.get()
+    def cluster_child(self, start_city, unused_cities, cluster_dict, iter):
+        pqueue = PriorityQueue()
         for i in range(len(unused_cities)):
-            pqueue.put((next_city.costTo(unused_cities[i]), rand(), unused_cities[i]))
-    if pqueue.qsize() > 0:
-        _, _, next_city = pqueue.get()
-        for i in range(len(unused_cities)):
-            pqueue.put((next_city.costTo(unused_cities[i]), rand(), unused_cities[i]))
-    if pqueue.qsize() > 0:
-        _, _, next_city = pqueue.get()
-        for i in range(len(unused_cities)):
-            pqueue.put((next_city.costTo(unused_cities[i]), rand(), unused_cities[i]))
+            pqueue.put((start_city.costTo(unused_cities[i]), rand(), unused_cities[i]))
+        if pqueue.qsize() > 0:
+            _, _, next_city = pqueue.get()
+            for i in range(len(unused_cities)):
+                pqueue.put((next_city.costTo(unused_cities[i]), rand(), unused_cities[i]))
+        if pqueue.qsize() > 0:
+            _, _, next_city = pqueue.get()
+            for i in range(len(unused_cities)):
+                pqueue.put((next_city.costTo(unused_cities[i]), rand(), unused_cities[i]))
+        if pqueue.qsize() > 0:
+            _, _, next_city = pqueue.get()
+            for i in range(len(unused_cities)):
+                pqueue.put((next_city.costTo(unused_cities[i]), rand(), unused_cities[i]))
 
-    child_set = set()
-    while len(child_set) < CLUSTER_SIZE and len(child_set) < len(unused_cities):
-        _, _, to_add = pqueue.get()
-        child_set.add(to_add)
+        child_set = set()
+        while len(child_set) < CLUSTER_SIZE and len(child_set) < len(unused_cities):
+            _, _, to_add = pqueue.get()
+            child_set.add(to_add)
 
-    child_set_cpy = child_set.copy()
+        child_set_cpy = child_set.copy()
 
-    for i in range(len(child_set)):
-        city = child_set_cpy.pop()
-        unused_cities.remove(city)
-        cluster_dict[city] = iter
+        for i in range(len(child_set)):
+            city = child_set_cpy.pop()
+            unused_cities.remove(city)
+            cluster_dict[city] = iter
 
-    child_set_list = set_to_list(child_set.copy())
-    print([child._name for child in child_set])
-    return set_to_list(child_set)
+        child_set_list = self.set_to_list(child_set.copy())
+        print([child._name for child in child_set])
+        return self.set_to_list(child_set)
 
+    def find_children_connections(self, children):
+        cluster_connection_matrix = [[(None, None) for i in range(len(children))] for j in range(len(children))]
+        cluster_cost_matrix = [[np.inf for i in range(len(children))] for j in range(len(children))]
 
-def find_children_connections(children):
-    cluster_connection_matrix = [[(None, None) for i in range(len(children))] for j in range(len(children))]
-    cluster_cost_matrix = [[np.inf for i in range(len(children))] for j in range(len(children))]
+        child_cnt = len(children)
 
-    child_cnt = len(children)
+        if child_cnt == 2:
+            cost, conn_1 = self.shortest_connections_for_two(children[0], children[1])
+            cost, conn_2 = self.shortest_connections_for_two(children[1], children[0])
+            cluster_cost_matrix[0][1] = cost
+            cluster_connection_matrix[0][1] = conn_1
+            cluster_cost_matrix[1][0] = cost
+            cluster_connection_matrix[1][0] = conn_2
+        else:
+            for i in range(child_cnt):
+                for j in range(child_cnt):
+                    if i == j:
+                        continue
+                    cost, conn_1 = self.shortest_connection(children[i], children[j])
+                    cluster_cost_matrix[i][j] = cost
+                    cluster_connection_matrix[i][j] = conn_1
 
-    if child_cnt == 2:
-        cost, conn_1 = shortest_connections_for_two(children[0], children[1])
-        cost, conn_2 = shortest_connections_for_two(children[1], children[0])
-        cluster_cost_matrix[0][1] = cost
-        cluster_connection_matrix[0][1] = conn_1
-        cluster_cost_matrix[1][0] = cost
-        cluster_connection_matrix[1][0] = conn_2
-    else:
-        for i in range(child_cnt):
-            for j in range(child_cnt):
-                if i == j:
-                    continue
-                cost, conn_1 = shortest_connection(children[i], children[j])
-                cluster_cost_matrix[i][j] = cost
-                cluster_connection_matrix[i][j] = conn_1
+        return cluster_cost_matrix, cluster_connection_matrix
 
-    return cluster_cost_matrix, cluster_connection_matrix
+    def shortest_connection(self, city_list1, city_list2):
+        prioQueue = PriorityQueue()
+        avg = 0
 
+        for city in city_list1:
+            for city_to in city_list2:
+                curr_cost = city.costTo(city_to)
+                avg = avg + curr_cost if curr_cost != np.inf else avg + 500
+                conn = (city, city_to)
+                prioQueue.put((curr_cost, hash(conn), conn))
+        avg = avg / (len(city_list1) * len(city_list2))
 
-def shortest_connection(city_list1, city_list2):
-    prioQueue = PriorityQueue()
-    avg = 0
+        return avg, prioQueue
 
-    for city in city_list1:
-        for city_to in city_list2:
-            curr_cost = city.costTo(city_to)
-            avg = avg + curr_cost if curr_cost != np.inf else avg + 500
-            conn = (city, city_to)
-            prioQueue.put((curr_cost, hash(conn), conn))
-    avg = avg / (len(city_list1) * len(city_list2))
+    def shortest_connections_for_two(self, city_list1, city_list2):
+        min_1 = np.inf
+        min_2 = np.inf
+        conn_1 = None
+        conn_2 = None
+        prioQueue = PriorityQueue()
 
-    return avg, prioQueue
+        for city in city_list1:
+            for city_to in city_list2:
+                curr_cost = city.costTo(city_to)
+                prioQueue.put((curr_cost, hash((city, city_to)), (city, city_to)))
 
+        # min_1, _, conn_1 = prioQueue.get()
+        # min_2, _, conn_2 = prioQueue.get()
+        # while(conn_has_overlap(conn_2, conn_1)):
+        # 	min_2, _, conn_2 = prioQueue.get()
 
-def shortest_connections_for_two(city_list1, city_list2):
-    min_1 = np.inf
-    min_2 = np.inf
-    conn_1 = None
-    conn_2 = None
-    prioQueue = PriorityQueue()
+        return 0, prioQueue
 
-    for city in city_list1:
-        for city_to in city_list2:
-            curr_cost = city.costTo(city_to)
-            prioQueue.put((curr_cost, hash((city, city_to)), (city, city_to)))
+    def conn_has_overlap(self, conn_1, conn_2):
+        if conn_2 is None:
+            return False
+        for city in conn_2:
+            for other_city in conn_1:
+                if city == other_city:
+                    return True
 
-    # min_1, _, conn_1 = prioQueue.get()
-    # min_2, _, conn_2 = prioQueue.get()
-    # while(conn_has_overlap(conn_2, conn_1)):
-    # 	min_2, _, conn_2 = prioQueue.get()
-
-    return 0, prioQueue
-
-
-def conn_has_overlap(conn_1, conn_2):
-    if conn_2 is None:
         return False
-    for city in conn_2:
-        for other_city in conn_1:
-            if city == other_city:
-                return True
 
-    return False
+    def select_connection_tuple(self, cluster_route, cluster_conn_matrix):
+        used_cities = []
+        route_conn = []
+        for i in range(len(cluster_route)):
+            prev_route_len = len(route_conn)
+            curr = cluster_route[i]
+            next = cluster_route[0] if i == len(cluster_route) - 1 else cluster_route[i + 1]
+            poss_connections = cluster_conn_matrix[curr][next]
+            while prev_route_len == len(route_conn):
+                conn = poss_connections.get()[2]
+                if conn[0] not in used_cities and conn[1] not in used_cities:
+                    route_conn.append(conn)
+                    used_cities.append(conn[0])
+                    used_cities.append(conn[1])
+                    break
+            print(i, ":", len(route_conn))
 
+        return route_conn
 
-def select_connection_tuple(cluster_route, cluster_conn_matrix):
-    used_cities = []
-    route_conn = []
-    for i in range(len(cluster_route)):
-        prev_route_len = len(route_conn)
-        curr = cluster_route[i]
-        next = cluster_route[0] if i == len(cluster_route) - 1 else cluster_route[i + 1]
-        poss_connections = cluster_conn_matrix[curr][next]
-        while prev_route_len == len(route_conn):
-            conn = poss_connections.get()[2]
-            if conn[0] not in used_cities and conn[1] not in used_cities:
-                route_conn.append(conn)
-                used_cities.append(conn[0])
-                used_cities.append(conn[1])
-                break
-        print(i, ":", len(route_conn))
+    def get_start_city(self, set):
+        for e in set:
+            break
+        return e
 
-    return route_conn
+    def set_to_list(self, set):
+        set_cpy = set.copy()
+        list = []
+        while (len(set_cpy) != 0):
+            list.append(set_cpy.pop())
+        return list
 
+    def min_conn(self, child_idx, cost_matrix, conn_matrix):
+        min_row = np.inf
+        min_col = np.inf
+        min_col_val = None
+        min_row_val = None
+        for i in range(len(cost_matrix)):
+            curr_row = cost_matrix[child_idx][i]
+            curr_col = cost_matrix[i][child_idx]
+            if curr_row < min_row:
+                min_row = curr_row
+                min_row_val = conn_matrix[child_idx][i]
+                row_y = i
+                if conn_matrix[row_y][child_idx] < min_col:
+                    min_col = conn_matrix[row_y][child_idx]
+                    min_col_val = conn_matrix[row_y][child_idx]
+            elif curr_col < min_col:
+                min_col = curr_col
+                min_col_val = conn_matrix[i][child_idx]
 
-def get_start_city(set):
-    for e in set:
-        break
-    return e
+        return min_row, min_row_val, min_col, min_col_val
 
+    def branch_and_bound_algorithm(self, cities_cnt, cityMatrix, start_c):
+        lowerbound = self.reduce_cost_matrix(cityMatrix)
+        my_route = []
+        my_route.append(start_c)
+        init_city = start_c
+        prioQueue = PriorityQueue()
+        init_state = State(my_route, cityMatrix, lowerbound)
+        prioQueue.put((lowerbound, my_route, init_state))
+        waitQueue = PriorityQueue()
+        foundTour = False
+        pruned_states = 0
 
-def set_to_list(set):
-    set_cpy = set.copy()
-    list = []
-    while (len(set_cpy) != 0):
-        list.append(set_cpy.pop())
-    return list
+        j = 0
+        while not foundTour:
+            if prioQueue.qsize() < 1:
+                print("error")
+            lowerbound, curr_path, curr_state = prioQueue.get()
+            start_city = curr_path[-1]
+            my_route = curr_state.route
+            cityMatrix = curr_state.cost_matrix
+            lowerbound = curr_state.lowerbound
 
+            for i in range(cities_cnt):
+                if i != init_city:
+                    if cityMatrix[start_city][i] != np.inf:
+                        child_val, child_matrix = self.find_child_val(start_city, i, cityMatrix, lowerbound)
+                        my_route.append(i)
+                        child_state = State(my_route, child_matrix, child_val)
+                        waitQueue.put((child_val // len(my_route), my_route.copy(), child_state))
+                        my_route.pop()
+            for i in range(SPACE_ALLOWANCE):
+                if waitQueue.qsize() > 0:
+                    prioQueue.put(waitQueue.get())
+            pruned_states += waitQueue.qsize()
+            waitQueue.queue.clear()
 
-def min_conn(child_idx, cost_matrix, conn_matrix):
-    min_row = np.inf
-    min_col = np.inf
-    min_col_val = None
-    min_row_val = None
-    for i in range(len(cost_matrix)):
-        curr_row = cost_matrix[child_idx][i]
-        curr_col = cost_matrix[i][child_idx]
-        if curr_row < min_row:
-            min_row = curr_row
-            min_row_val = conn_matrix[child_idx][i]
-            row_y = i
-            if conn_matrix[row_y][child_idx] < min_col:
-                min_col = conn_matrix[row_y][child_idx]
-                min_col_val = conn_matrix[row_y][child_idx]
-        elif curr_col < min_col:
-            min_col = curr_col
-            min_col_val = conn_matrix[i][child_idx]
+            # TODO: len(cities)-1?
+            if len(my_route) == cities_cnt:
+                foundTour = True
 
-    return min_row, min_row_val, min_col, min_col_val
+        return my_route, pruned_states
 
+    def setup_start_and_end(self, childMatrix, start, end):
+        for i in range(len(childMatrix)):
+            childMatrix[i][start] = np.inf
+            childMatrix[end][i] = np.inf
+        childMatrix[start][end] = np.inf
 
-def branch_and_bound_algorithm(cities_cnt, cityMatrix, start_c):
-    lowerbound = reduce_cost_matrix(cityMatrix)
-    my_route = []
-    my_route.append(start_c)
-    init_city = start_c
-    prioQueue = PriorityQueue()
-    init_state = State(my_route, cityMatrix, lowerbound)
-    prioQueue.put((lowerbound, my_route, init_state))
-    waitQueue = PriorityQueue()
-    foundTour = False
-    pruned_states = 0
+    def Kmeans(self, cities):
+        cities_cnt = len(cities)
+        kcnt = cities_cnt // CLUSTER_SIZE + 1
+        cluster_list = [Cluster() for k in range(kcnt)]
+        isUpdating = True
+        while isUpdating:
+            isUpdating = False
+            self.assign_cities_to_cluster(cities, cluster_list)
+            for cluster in cluster_list:
+                if len(cluster.cities) < MIN_CLUSTER_SIZE:
+                    self.dissolve_cluster(cluster, cluster_list)
+                    unchanged = False
+                    continue
+                if len(cluster.cities) > MAX_CLUSTER_SIZE:
+                    self.split_cluster(cluster, cluster_list)
+                    unchanged = False
+                    continue
+                unchanged = cluster.update()
+                if not unchanged:
+                    isUpdating = True
 
-    j = 0
-    while not foundTour:
-        if prioQueue.qsize() < 1:
-            print("error")
-        lowerbound, curr_path, curr_state = prioQueue.get()
-        start_city = curr_path[-1]
-        my_route = curr_state.route
-        cityMatrix = curr_state.cost_matrix
-        lowerbound = curr_state.lowerbound
+        self.assign_cities_to_cluster(self, cities, cluster_list)
+        return [cluster.cities for cluster in cluster_list]
 
-        for i in range(cities_cnt):
-            if i != init_city:
-                if cityMatrix[start_city][i] != np.inf:
-                    child_val, child_matrix = find_child_val(start_city, i, cityMatrix, lowerbound)
-                    my_route.append(i)
-                    child_state = State(my_route, child_matrix, child_val)
-                    waitQueue.put((child_val // len(my_route), my_route.copy(), child_state))
-                    my_route.pop()
-        for i in range(SPACE_ALLOWANCE):
-            if waitQueue.qsize() > 0:
-                prioQueue.put(waitQueue.get())
-        pruned_states += waitQueue.qsize()
-        waitQueue.queue.clear()
-
-        # TODO: len(cities)-1?
-        if len(my_route) == cities_cnt:
-            foundTour = True
-
-    return my_route, pruned_states
-
-
-def setup_start_and_end(childMatrix, start, end):
-    for i in range(len(childMatrix)):
-        childMatrix[i][start] = np.inf
-        childMatrix[end][i] = np.inf
-    childMatrix[start][end] = np.inf
-
-
-def Kmeans(cities):
-    cities_cnt = len(cities)
-    kcnt = cities_cnt // CLUSTER_SIZE + 1
-    cluster_list = [Cluster() for k in range(kcnt)]
-    isUpdating = True
-    while isUpdating:
-        isUpdating = False
-        assign_cities_to_cluster(cities, cluster_list)
-        for cluster in cluster_list:
-            if len(cluster.cities) < MIN_CLUSTER_SIZE:
-                dissolve_cluster(cluster, cluster_list)
-                unchanged = False
-                continue
-            if len(cluster.cities) > MAX_CLUSTER_SIZE:
-                split_cluster(cluster, cluster_list)
-                unchanged = False
-                continue
-            unchanged = cluster.update()
-            if not unchanged:
-                isUpdating = True
-
-    assign_cities_to_cluster(cities, cluster_list)
-    return [cluster.cities for cluster in cluster_list]
-
-
-def assign_cities_to_cluster(cities, cluster_list):
-    for city in cities:
-        min_cluster = None
-        min_val = np.inf
-        for cluster in cluster_list:
-            dist = cluster.distance(city)
-            if dist < min_val:
-                min_cluster = cluster
-                min_val = dist
-        min_cluster.add_city(city)
-
+    def assign_cities_to_cluster(self, cities, cluster_list):
+        for city in cities:
+            min_cluster = None
+            min_val = np.inf
+            for cluster in cluster_list:
+                dist = cluster.distance(city)
+                if dist < min_val:
+                    min_cluster = cluster
+                    min_val = dist
+            min_cluster.add_city(city)
 
 class Cluster():
     def __init__(self, xy=None):
@@ -1259,28 +1253,26 @@ class Cluster():
         self._x = xy[0]
         self._y = xy[1]
 
+    def dissolve_cluster(self, cluster, cluster_list):
+        cluster_list.remove(cluster)
+        self.assign_cities_to_cluster(cluster.cities, cluster_list)
 
-def dissolve_cluster(cluster, cluster_list):
-    cluster_list.remove(cluster)
-    assign_cities_to_cluster(cluster.cities, cluster_list)
+    def split_cluster(self, cluster, cluster_list):
+        std_dev_x = 0
+        std_dev_y = 0
+        for city in cluster.cities:
+            std_dev_x += abs(cluster._x - city._x)
+            std_dev_y += abs(cluster._y - city._y)
 
+        std_dev_x /= len(cluster.cities)
+        std_dev_y /= len(cluster.cities)
 
-def split_cluster(cluster, cluster_list):
-    std_dev_x = 0
-    std_dev_y = 0
-    for city in cluster.cities:
-        std_dev_x += abs(cluster._x - city._x)
-        std_dev_y += abs(cluster._y - city._y)
+        split_x = cluster._x + std_dev_x
+        split_y = cluster._y + std_dev_y
+        other_x = cluster._x - std_dev_x
+        other_y = cluster._y - std_dev_y
 
-    std_dev_x /= len(cluster.cities)
-    std_dev_y /= len(cluster.cities)
-
-    split_x = cluster._x + std_dev_x
-    split_y = cluster._y + std_dev_y
-    other_x = cluster._x - std_dev_x
-    other_y = cluster._y - std_dev_y
-
-    new_cluster = Cluster((split_x, split_y))
-    cluster.change_loc((other_x, other_y))
-    cluster_list.append(new_cluster)
-    cluster.clearCities()
+        new_cluster = Cluster((split_x, split_y))
+        cluster.change_loc((other_x, other_y))
+        cluster_list.append(new_cluster)
+        cluster.clearCities()

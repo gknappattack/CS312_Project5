@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-import queue
 from queue import PriorityQueue
 import copy
 
