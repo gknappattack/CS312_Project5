@@ -834,29 +834,7 @@ class TSPSolver:
         # Return results - Time O(1)
         return results
 
-    ''' <summary>
-        This is the entry point for the algorithm you'll write for your group project.
-        </summary>
-        <returns>results dictionary for GUI that contains three ints: cost of best solution, 
-        time spent to find best solution, total number of solutions found during search, the 
-        best solution found.  You may use the other three field however you like.
-        algorithm</returns> 
-    '''
 
-    def getCostMatrix(self, cities, cluster):
-        costmatrix = np.zeros((len(cluster), len(cluster)))
-
-        for row, sourceindex in enumerate(cluster):
-            for column, destindex in enumerate(cluster):
-                city = cities[sourceindex]
-                secondcity = cities[destindex]
-
-                if city == secondcity:  # Check if condition - Time O(1)
-                    costmatrix[row][column] = np.inf  # Update values in array - Time O(1)
-                else:
-                    costmatrix[row][column] = city.costTo(secondcity)  # Update value - Time O(1)
-
-        return costmatrix
 
     def fancy(self, time_allowance=60.0):
         # Initialize dictionary for results
@@ -1002,8 +980,6 @@ class TSPSolver:
 
                 if new_soln.cost < bssf.cost:
                     bssf = new_soln
-                    print("Updated BSSF")
-                    print("\n\nBSSF cost now: " + str(bssf.cost))
 
             starting_index = starting_index + 1
 
@@ -1020,6 +996,22 @@ class TSPSolver:
         results['pruned'] = None
 
         return results
+
+
+    def getCostMatrix(self, cities, cluster):
+        costmatrix = np.zeros((len(cluster), len(cluster)))
+
+        for row, sourceindex in enumerate(cluster):
+            for column, destindex in enumerate(cluster):
+                city = cities[sourceindex]
+                secondcity = cities[destindex]
+
+                if city == secondcity:  # Check if condition - Time O(1)
+                    costmatrix[row][column] = np.inf  # Update values in array - Time O(1)
+                else:
+                    costmatrix[row][column] = city.costTo(secondcity)  # Update value - Time O(1)
+
+        return costmatrix
 
     def greedyGetShortestPath(self, cluster, matrix, current_solution):
         # Get the index of the starting city based on location in
@@ -1051,9 +1043,6 @@ class TSPSolver:
             min_path = prio_q.get()
             min_column_index = min_path[1]
 
-            if min_path[0] == np.inf:
-                print("hey!!")
-
             # Get the number of the city from the cluster at the column index
             next_city = cluster[min_column_index]
 
@@ -1067,9 +1056,6 @@ class TSPSolver:
 
         for index in range(len(final_solution) - 1):
             cost = final_solution[index].costTo(final_solution[index + 1])
-
-            if cost == np.inf:
-                print("Bad boy!")
 
         return final_solution
 
@@ -1093,8 +1079,5 @@ class TSPSolver:
             min_connection = connections_prio_queue.get()
             if min_connection[2] not in solution_path:
                 break
-
-        if min_connection[0] == np.inf:
-            print("Bad boy!!")
 
         return min_connection[2]
