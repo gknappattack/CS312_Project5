@@ -20,8 +20,8 @@ from TSPClasses import *
 import heapq
 import itertools
 
-SPACE_ALLOWANCE = 5
-CLUSTER_SIZE = 10
+SPACE_ALLOWANCE = 3
+CLUSTER_SIZE = 30
 
 class TSPSolver:
 	def __init__( self, gui_view ):
@@ -219,11 +219,12 @@ class TSPSolver:
 		final_route_3 = []
 
 
+		time_start = time.time()
+
 		cluster_cost_matrix, cluster_connection_matrix = find_children_connections(children)
 		##TODO: cluster route is using branch and bound, should use a greedy.
 		cluster_route = branch_and_bound_algorithm(len(children), cluster_cost_matrix, 0)
 		route_conn = select_connection_tuple(cluster_route, cluster_connection_matrix)
-		time_start = time.time()
 
 		for i in range(len(cluster_route)):
 			child = children[cluster_route[i]]
@@ -232,6 +233,8 @@ class TSPSolver:
 			end_cluster = cluster_route[0] if i == len(cluster_route)-1 else cluster_route[i+1]
 			start_city = route_conn[i-1][1]
 			end_city = route_conn[i][0]
+			if end_city not in child:
+				continue
 			start_city_idx = child.index(start_city)
 			end_city_idx = child.index(end_city)
 			print(i, "cluster: ", start_city._name, ", ", end_city._name)
@@ -318,12 +321,26 @@ def cluster_child(start_city, unused_cities, cluster_dict, iter):
 	pqueue = PriorityQueue()
 	for i in range(len(unused_cities)):
 		pqueue.put((start_city.costTo(unused_cities[i]), rand(), unused_cities[i]))
-	_, _, next_city = pqueue.get()
-	for i in range(len(unused_cities)):
-		pqueue.put((next_city.costTo(unused_cities[i]), rand(), unused_cities[i]))
-	_, _, next_city = pqueue.get()
-	for i in range(len(unused_cities)):
-		pqueue.put((next_city.costTo(unused_cities[i]), rand(), unused_cities[i]))
+	if pqueue.qsize() > 0:
+		_, _, next_city = pqueue.get()
+		for i in range(len(unused_cities)):
+			pqueue.put((next_city.costTo(unused_cities[i]), rand(), unused_cities[i]))
+	if pqueue.qsize()>0:
+		_, _, next_city = pqueue.get()
+		for i in range(len(unused_cities)):
+			pqueue.put((next_city.costTo(unused_cities[i]), rand(), unused_cities[i]))
+	if pqueue.qsize() > 0:
+		_, _, next_city = pqueue.get()
+		for i in range(len(unused_cities)):
+			pqueue.put((next_city.costTo(unused_cities[i]), rand(), unused_cities[i]))
+	# if pqueue.qsize() > 0:
+	# 	_, _, next_city = pqueue.get()
+	# 	for i in range(len(unused_cities)):
+	# 		pqueue.put((next_city.costTo(unused_cities[i]), rand(), unused_cities[i]))
+	# if pqueue.qsize() > 0:
+	# 	_, _, next_city = pqueue.get()
+	# 	for i in range(len(unused_cities)):
+	# 		pqueue.put((next_city.costTo(unused_cities[i]), rand(), unused_cities[i]))
 
 
 	child_set = set()
@@ -364,42 +381,25 @@ def find_children_connections(children):
 				# conn_list.extend([x for sub in cluster_connection_matrix[:][j] for x in sub])
 				# used_cities = conn_list_all
 				# okay_cities = conn_list
-				conn_1, cost = shortest_connection(children[i], children[j])
+				cost, conn_1 = shortest_connection(children[i], children[j])
 				cluster_cost_matrix[i][j] = cost
 				cluster_connection_matrix[i][j] = conn_1
 
 	return cluster_cost_matrix, cluster_connection_matrix
 
 def shortest_connection(city_list1, city_list2):
-	my_min = np.inf
-	min_city_from = None
-	min_city_to = None
-
-	min_2 = np.inf
-	min_from_2 = None
-	min_to_2 = None
-
-	min_3 = np.inf
-	min_from_3 = None
-	min_to_3 = None
+	prioQueue = PriorityQueue()
+	avg = 0
 
 	for city in city_list1:
 		for city_to in city_list2:
 			curr_cost = city.costTo(city_to)
-			if curr_cost < my_min:
-				my_min = curr_cost
-				min_city_from = city
-				min_city_to = city_to
-			elif curr_cost < min_2:
-				min_2 = curr_cost
-				min_from_2 = city
-				min_to_2 = city_to
-			elif curr_cost < min_3:
-				min_3 = curr_cost
-				min_from_3 = city
-				min_to_3 = city_to
+			avg = avg + curr_cost if curr_cost != np.inf else avg + 500
+			conn = (city, city_to)
+			prioQueue.put((curr_cost, hash(conn), conn))
+	avg = avg /(len(city_list1) * len(city_list2))
 
-	return ((min_city_from, min_city_to), (min_from_2, min_to_2), (min_from_3, min_to_3)), my_min
+	return avg, prioQueue
 
 def shortest_connections_for_two(city_list1, city_list2):
 	min_1 = np.inf
@@ -434,15 +434,18 @@ def select_connection_tuple(cluster_route, cluster_conn_matrix):
 	used_cities = []
 	route_conn = []
 	for i in range(len(cluster_route)):
+		prev_route_len = len(route_conn)
 		curr = cluster_route[i]
 		next = cluster_route[0] if i == len(cluster_route)-1 else cluster_route[i+1]
 		poss_connections = cluster_conn_matrix[curr][next]
-		for conn in poss_connections:
+		while prev_route_len == len(route_conn):
+			conn = poss_connections.get()[2]
 			if conn[0] not in used_cities and conn[1] not in used_cities:
 				route_conn.append(conn)
 				used_cities.append(conn[0])
 				used_cities.append(conn[1])
 				break
+		print(i, ":", len(route_conn))
 
 	return route_conn
 
@@ -487,13 +490,24 @@ def branch_and_bound_algorithm(cities_cnt, cityMatrix, start_c):
 	prioQueue = PriorityQueue()
 	init_state = State(my_route, cityMatrix, lowerbound)
 	prioQueue.put((lowerbound, my_route, init_state))
+	waitQueue = PriorityQueue()
 	foundTour = False
 
+	j = 0
 	while not foundTour:
+		# j+=1
+		# if j == 20:
+		# 	j = 0
+		# 	print("")
+		# if j%3 == 0:
+		# 	print(len(my_route), end=".")
+		if prioQueue.qsize() < 1:
+			print("error")
 		lowerbound, curr_path, curr_state = prioQueue.get()
 		start_city = curr_path[-1]
 		my_route = curr_state.route
 		cityMatrix = curr_state.cost_matrix
+		lowerbound = curr_state.lowerbound
 
 		for i in range(cities_cnt):
 			if i != init_city:
@@ -501,8 +515,12 @@ def branch_and_bound_algorithm(cities_cnt, cityMatrix, start_c):
 					child_val, child_matrix = find_child_val(start_city, i, cityMatrix, lowerbound)
 					my_route.append(i)
 					child_state = State(my_route, child_matrix, child_val)
-					prioQueue.put((child_val, my_route.copy(), child_state))
+					waitQueue.put((child_val//len(my_route), my_route.copy(), child_state))
 					my_route.pop()
+		for i in range(SPACE_ALLOWANCE):
+			if waitQueue.qsize() > 0:
+				prioQueue.put(waitQueue.get())
+		waitQueue.queue.clear()
 
 
 		# TODO: len(cities)-1?
