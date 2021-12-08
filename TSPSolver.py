@@ -830,54 +830,78 @@ class TSPSolver:
 
     def fancy(self, time_allowance=60.0):
         results = {}
-        cities = self._scenario.getCities()
-        # children = cluster_all_children(cities)
-        cluster_prio = PriorityQueue()
-        final_route = []
-        final_route_2 = []
-        final_route_3 = []
+		cities = self._scenario.getCities()
+		# children = cluster_all_children(cities)
+		cluster_prio = PriorityQueue()
+		final_route = []
+		not_valid_solution = True
+		# final_route_2 = []
+		# final_route_3 = []
+		cluster_cost_matrix = None
+		cluster_connection_matrix = None
 
-        time_start = time.time()
-        children = Kmeans(cities)
-        cluster_cost_matrix, cluster_connection_matrix = find_children_connections(children)
-        ##TODO: cluster route is using branch and bound, should use a greedy.
-        cluster_route, pruned_states = branch_and_bound_algorithm(len(children), cluster_cost_matrix, 0)
-        route_conn = select_connection_tuple(cluster_route, cluster_connection_matrix)
+		time_start = time.time()
 
-        for i in range(len(cluster_route)):
-            child = children[cluster_route[i]]
-            childMatrix = initialize_matrix(child)
-            start_cluster = cluster_route[i - 1]
-            end_cluster = cluster_route[0] if i == len(cluster_route) - 1 else cluster_route[i + 1]
-            start_city = route_conn[i - 1][1]
-            end_city = route_conn[i][0]
-            if end_city not in child:
-                continue
-            if start_city not in child:
-                continue
-            start_city_idx = child.index(start_city)
-            end_city_idx = child.index(end_city)
-            print(i, "cluster: ", start_city._name, ", ", end_city._name)
+		while(not_valid_solution):
+			print("start")
+			final_route.clear()
+			not_valid_solution = False
 
-            setup_start_and_end(childMatrix, start_city_idx, end_city_idx)
-            child_route, just_pruned = branch_and_bound_algorithm(len(child), childMatrix, start_city_idx)
-            pruned_states += just_pruned
-            final_route_2.extend(child_route.copy())
-            final_route_3.extend([child[idx]._name for idx in child_route])
-            final_route.extend([child[idx] for idx in child_route])
+			children, kworked = Kmeans(cities)
+			if not kworked:
+				not_valid_solution = True
+				continue
 
-        time_end = time.time()
-        print([my_child._name for my_child in final_route])
-        # wrap-up
-        bssf = TSPSolution(final_route)
-        results['cost'] = bssf.cost
-        results['time'] = time_end - time_start
-        results['count'] = 1
-        results['soln'] = bssf
-        results['max'] = 100
-        results['total'] = 100
-        results['pruned'] = pruned_states
-        return results
+			print("children done")
+			cluster_cost_matrix, cluster_connection_matrix = find_children_connections(children)
+			print("made clusters")
+			cluster_route, pruned_states = branch_and_bound_algorithm(len(children), cluster_cost_matrix, 0)
+			print("made route")
+			route_conn = select_connection_tuple(cluster_route, cluster_connection_matrix)
+
+			for i in range(len(cluster_route)):
+				print(i, end=".")
+				child = children[cluster_route[i]]
+				childMatrix = initialize_matrix(child)
+				start_cluster = cluster_route[i-1]
+				end_cluster = cluster_route[0] if i == len(cluster_route)-1 else cluster_route[i+1]
+				start_city = route_conn[i-1][1]
+				end_city = route_conn[i][0]
+				if end_city not in child:
+					continue
+				if start_city not in child:
+					continue
+				start_city_idx = child.index(start_city)
+				end_city_idx = child.index(end_city)
+				# print(i, "cluster: ", start_city._name, ", ", end_city._name)
+
+				setup_start_and_end(childMatrix, start_city_idx, end_city_idx)
+				child_route, just_pruned = branch_and_bound_algorithm(len(child), childMatrix, start_city_idx)
+				if just_pruned == np.inf:
+					print([city._name for city in child])
+					not_valid_solution = True
+					break
+				else:
+					pruned_states += just_pruned
+				# final_route_2.extend(child_route.copy())
+				# final_route_3.extend([child[idx]._name for idx in child_route])
+				final_route.extend([child[idx] for idx in child_route])
+
+			if not_valid_solution == True:
+				continue
+
+		time_end = time.time()
+		print([my_child._name for my_child in final_route])
+		#wrap-up
+		bssf = TSPSolution(final_route)
+		results['cost'] = bssf.cost
+		results['time'] = time_end - time_start
+		results['count'] = 1
+		results['soln'] = bssf
+		results['max'] = 100
+		results['total'] = 100
+		results['pruned'] = pruned_states
+		return results
 
 
 def find_child_val(start_city_index, next_city_index, cost_matrix_orig, prev_lowerbound):
@@ -1104,45 +1128,47 @@ def min_conn(child_idx, cost_matrix, conn_matrix):
 
 def branch_and_bound_algorithm(cities_cnt, cityMatrix, start_c):
     lowerbound = reduce_cost_matrix(cityMatrix)
-    my_route = []
-    my_route.append(start_c)
-    init_city = start_c
-    prioQueue = PriorityQueue()
-    init_state = State(my_route, cityMatrix, lowerbound)
-    prioQueue.put((lowerbound, my_route, init_state))
-    waitQueue = PriorityQueue()
-    foundTour = False
-    pruned_states = 0
+	my_route = []
+	my_route.append(start_c)
+	init_city = start_c
+	prioQueue = PriorityQueue()
+	init_state = State(my_route, cityMatrix, lowerbound)
+	prioQueue.put((lowerbound, my_route, init_state))
+	waitQueue = PriorityQueue()
+	foundTour = False
+	pruned_states = 0
 
-    j = 0
-    while not foundTour:
-        if prioQueue.qsize() < 1:
-            print("error")
-        lowerbound, curr_path, curr_state = prioQueue.get()
-        start_city = curr_path[-1]
-        my_route = curr_state.route
-        cityMatrix = curr_state.cost_matrix
-        lowerbound = curr_state.lowerbound
+	while not foundTour:
+		if prioQueue.qsize() < 1:
+			print("error")
+			return [], np.inf
+		lowerbound, curr_path, curr_state = prioQueue.get()
+		start_city = curr_path[-1]
+		my_route = curr_state.route
+		cityMatrix = curr_state.cost_matrix
+		lowerbound = curr_state.lowerbound
 
-        for i in range(cities_cnt):
-            if i != init_city:
-                if cityMatrix[start_city][i] != np.inf:
-                    child_val, child_matrix = find_child_val(start_city, i, cityMatrix, lowerbound)
-                    my_route.append(i)
-                    child_state = State(my_route, child_matrix, child_val)
-                    waitQueue.put((child_val // len(my_route), my_route.copy(), child_state))
-                    my_route.pop()
-        for i in range(SPACE_ALLOWANCE):
-            if waitQueue.qsize() > 0:
-                prioQueue.put(waitQueue.get())
-        pruned_states += waitQueue.qsize()
-        waitQueue.queue.clear()
+		for i in range(cities_cnt):
+			if i != init_city:
+				if cityMatrix[start_city][i] != np.inf:
+					child_val, child_matrix = find_child_val(start_city, i, cityMatrix, lowerbound)
+					my_route.append(i)
+					child_state = State(my_route, child_matrix, child_val)
+					waitQueue.put((child_val//len(my_route), my_route.copy(), child_state))
+					my_route.pop()
+		for i in range(SPACE_ALLOWANCE):
+			if waitQueue.qsize() > 0:
+				prioQueue.put(waitQueue.get())
+		pruned_states += waitQueue.qsize()
+		waitQueue.queue.clear()
 
-        # TODO: len(cities)-1?
-        if len(my_route) == cities_cnt:
-            foundTour = True
 
-    return my_route, pruned_states
+		# TODO: len(cities)-1?
+		if len(my_route) == cities_cnt:
+			foundTour = True
+
+
+	return my_route, pruned_states
 
 
 def setup_start_and_end(childMatrix, start, end):
@@ -1153,28 +1179,35 @@ def setup_start_and_end(childMatrix, start, end):
 
 
 def Kmeans(cities):
-    cities_cnt = len(cities)
-    kcnt = cities_cnt // CLUSTER_SIZE + 1
-    cluster_list = [Cluster() for k in range(kcnt)]
-    isUpdating = True
-    while isUpdating:
-        isUpdating = False
-        assign_cities_to_cluster(cities, cluster_list)
-        for cluster in cluster_list:
-            if len(cluster.cities) < MIN_CLUSTER_SIZE:
-                dissolve_cluster(cluster, cluster_list)
-                unchanged = False
-                continue
-            if len(cluster.cities) > MAX_CLUSTER_SIZE:
-                split_cluster(cluster, cluster_list)
-                unchanged = False
-                continue
-            unchanged = cluster.update()
-            if not unchanged:
-                isUpdating = True
+	cities_cnt = len(cities)
+	kcnt = cities_cnt//CLUSTER_SIZE + 1
+	cluster_list = [Cluster() for k in range(kcnt)]
+	isUpdating = True
+	kWorked = True
+	i = 0
+	while isUpdating:
+		print(i, end=",")
+		i+=1
+		if i > 75:
+			kWorked = False
+			print("kmeans runtime error")
+		isUpdating = False
+		assign_cities_to_cluster(cities, cluster_list)
+		for cluster in cluster_list:
+			if len(cluster.cities) < MIN_CLUSTER_SIZE:
+				dissolve_cluster(cluster, cluster_list)
+				unchanged = False
+				continue
+			if len(cluster.cities) > MAX_CLUSTER_SIZE:
+				split_cluster(cluster, cluster_list)
+				unchanged = False
+				continue
+			unchanged = cluster.update()
+			if not unchanged:
+				isUpdating = True
 
-    assign_cities_to_cluster(cities, cluster_list)
-    return [cluster.cities for cluster in cluster_list]
+	assign_cities_to_cluster(cities, cluster_list)
+	return [cluster.cities for cluster in cluster_list], kWorked
 
 
 def assign_cities_to_cluster(cities, cluster_list):
