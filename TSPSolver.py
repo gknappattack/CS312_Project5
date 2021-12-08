@@ -1191,6 +1191,8 @@ def Kmeans(cities):
 		if i > 75:
 			kWorked = False
 			print("kmeans runtime error")
+			return [], kWorked
+
 		isUpdating = False
 		assign_cities_to_cluster(cities, cluster_list)
 		for cluster in cluster_list:
